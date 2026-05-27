@@ -38,4 +38,28 @@ This package owns trace records, signal records, layer trajectories, JSONL
 persistence, bounded redaction, and export helpers. It does not run models or
 decide routes.
 
+## Usage
+
+```elixir
+alias CrucibleSignal.SignalRef
+alias CrucibleSignalTrace.{ForwardTrace, JSONL}
+
+logits_ref =
+  SignalRef.new!(
+    trace_id: "trace-1",
+    signal_id: "final-logits",
+    signal_type: :final_logits
+  )
+
+trace =
+  ForwardTrace.new!(
+    trace_id: "trace-1",
+    model_ref: "qwen3:local",
+    final_logits: logits_ref,
+    cache_summary: %{blocks: 28}
+  )
+
+line = JSONL.encode_line!(trace)
+```
+
 Documentation can be generated with `mix docs` and published to HexDocs.
