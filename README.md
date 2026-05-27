@@ -67,6 +67,7 @@ line = JSONL.encode_line!(trace)
 - [Quickstart](guides/quickstart.md)
 - [Concepts](guides/concepts.md)
 - [Forward Trace](guides/forward_trace.md)
+- [Provider Neutral Traces](guides/provider_neutral_traces.md)
 - [Layer Trajectory](guides/layer_trajectory.md)
 - [JSONL Persistence](guides/jsonl_persistence.md)
 - [AITrace Export](guides/ai_trace_export.md)
@@ -85,3 +86,13 @@ line = JSONL.encode_line!(trace)
 - Full local gate: `mix ci`
 
 Documentation can be generated with `mix docs` and published to HexDocs.
+
+## V4 Status
+
+Status: `schema-compatible`.
+
+V4 trace streams use `"schema_version": "crucible.trace.v4"`.
+`CrucibleSignalTrace.JSONL.write_event!/2`,
+`CrucibleSignalTrace.JSONL.stream!/1`, `CrucibleSignalTrace.Validate`, and
+`CrucibleSignalTrace.Ingest.from_jsonl/2` validate and assemble provider-neutral
+JSONL traces without inline raw tensor arrays.

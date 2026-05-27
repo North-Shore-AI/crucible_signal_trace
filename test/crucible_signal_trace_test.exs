@@ -168,6 +168,71 @@ defmodule CrucibleSignalTraceTest do
     assert evidence.trace_id == "trace-export"
   end
 
+  test "writes, validates, and ingests V4 JSONL events" do
+    path =
+      Path.join(
+        System.tmp_dir!(),
+        "crucible_signal_trace_v4_#{System.unique_integer([:positive])}.jsonl"
+      )
+
+    on_exit(fn -> File.rm(path) end)
+
+    trace_id = "trace-v4"
+    summary = Crucible.TensorSummary.compute([1.0, 2.0, 3.0], entropy: true, top_k: 2)
+
+    signal = %Crucible.SignalRecord{
+      signal_id: "sig-v4",
+      trace_id: trace_id,
+      run_id: "run-v4",
+      signal_type: :final_logits,
+      provider_kind: :elixir_bumblebee,
+      model_id: "hf-internal-testing/tiny-random-gpt2",
+      model_family: :gpt2,
+      backend: :exla_cpu,
+      node_name: "final_logits",
+      capture_method: :axon_hook,
+      tensor_summary: summary
+    }
+
+    JSONL.write_event!(
+      path,
+      JSONL.v4_event(:trace_start,
+        trace_id: trace_id,
+        run_id: "run-v4",
+        provider_kind: :elixir_bumblebee,
+        model_id: "hf-internal-testing/tiny-random-gpt2",
+        model_family: :gpt2,
+        backend: :exla_cpu
+      )
+    )
+
+    JSONL.write_event!(path, JSONL.v4_event(:signal_record, trace_id: trace_id, signal: signal))
+    JSONL.write_event!(path, JSONL.v4_event(:trace_end, trace_id: trace_id, status: :ok))
+
+    assert [%{"event_type" => "signal_record"}] =
+             path
+             |> JSONL.stream!()
+             |> Enum.filter(&(&1["event_type"] == "signal_record"))
+
+    assert {:ok, %Crucible.ForwardTrace{} = trace} = CrucibleSignalTrace.Ingest.from_jsonl(path)
+    assert trace.trace_id == trace_id
+    assert [%Crucible.SignalRecord{signal_type: :final_logits}] = trace.signals
+    assert trace.status == :ok
+    assert String.starts_with?(trace.metadata.trace_digest, "sha256:")
+  end
+
+  test "rejects V4 signal records with inline raw arrays" do
+    event =
+      JSONL.v4_event(:signal_record,
+        trace_id: "trace-v4-bad",
+        signal: %{signal_id: "bad", tensor: [1.0, 2.0, 3.0]}
+      )
+
+    assert_raise ArgumentError, ~r/raw_tensor_arrays_forbidden/, fn ->
+      CrucibleSignalTrace.Validate.validate_event!(event)
+    end
+  end
+
   defp signal_ref(signal_type, signal_id) do
     SignalRef.new!(
       trace_id: "trace-1",
