@@ -54,12 +54,34 @@ logits_ref =
 trace =
   ForwardTrace.new!(
     trace_id: "trace-1",
-    model_ref: "qwen3:local",
+    model_ref: "model:local",
     final_logits: logits_ref,
     cache_summary: %{blocks: 28}
   )
 
 line = JSONL.encode_line!(trace)
 ```
+
+## Guides
+
+- [Quickstart](guides/quickstart.md)
+- [Concepts](guides/concepts.md)
+- [Forward Trace](guides/forward_trace.md)
+- [Layer Trajectory](guides/layer_trajectory.md)
+- [JSONL Persistence](guides/jsonl_persistence.md)
+- [AITrace Export](guides/ai_trace_export.md)
+- [Redaction](guides/redaction.md)
+- [Working Examples](guides/working_examples.md)
+- [Testing](guides/testing.md)
+
+## Examples
+
+- `examples/trace_jsonl_mock.exs`
+- `examples/aitrace_export_live.exs`
+
+## Testing
+
+- Default suite: `mix test`
+- Full local gate: `mix ci`
 
 Documentation can be generated with `mix docs` and published to HexDocs.

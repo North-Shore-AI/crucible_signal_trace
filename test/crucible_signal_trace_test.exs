@@ -39,7 +39,7 @@ defmodule CrucibleSignalTraceTest do
     trace =
       ForwardTrace.new!(
         trace_id: "trace-1",
-        model_ref: "qwen3:fixture",
+        model_ref: "model:fixture",
         input_hash: Digest.text("hello"),
         tap_plan_ref: "tap-plan-1",
         signal_records: [record],
@@ -75,6 +75,60 @@ defmodule CrucibleSignalTraceTest do
     assert [%{"signal_ref" => %{"signal_type" => "embeddings"}}] = decoded["signal_records"]
   end
 
+  test "streams JSONL event envelopes" do
+    path =
+      Path.join(
+        System.tmp_dir!(),
+        "crucible_signal_trace_stream_#{System.unique_integer([:positive])}.jsonl"
+      )
+
+    on_exit(fn -> File.rm(path) end)
+
+    events = [
+      JSONL.trace_start("trace-stream"),
+      JSONL.token_step("trace-stream", 0, "logits:0"),
+      JSONL.trace_end("trace-stream")
+    ]
+
+    assert :ok = JSONL.stream_encode(path, events)
+
+    decoded =
+      path
+      |> JSONL.stream_decode()
+      |> Enum.map(fn {:ok, value} -> value["event_type"] end)
+
+    assert decoded == ["trace_start", "token_step", "trace_end"]
+  end
+
+  test "computes layer-to-layer cosine drift from vectors" do
+    trajectory =
+      LayerTrajectory.new!([
+        %{layer_index: 12, vector: [1.0, 0.0, 0.0]},
+        %{layer_index: 16, vector: [0.0, 1.0, 0.0]},
+        %{layer_index: 20, vector: [0.0, 1.0, 0.0]}
+      ])
+
+    assert {:ok, [%{from: 12, to: 16, distance: first}, %{from: 16, to: 20, distance: second}]} =
+             LayerTrajectory.cosine_drifts(trajectory)
+
+    assert_in_delta first, 1.0, 0.001
+    assert_in_delta second, 0.0, 0.001
+    assert [{12, 1.0}, {16, 1.0}, {20, 1.0}] = LayerTrajectory.norm_curve(trajectory)
+
+    assert [%{anomaly?: true}, %{anomaly?: false}] =
+             LayerTrajectory.anomaly_flags(trajectory, drift_threshold: 0.5)
+  end
+
+  test "cosine drift errors without vectors" do
+    trajectory =
+      LayerTrajectory.new!([
+        %{layer_index: 1, norm: 1.0},
+        %{layer_index: 2, norm: 2.0}
+      ])
+
+    assert {:error, :insufficient_data} = LayerTrajectory.cosine_drifts(trajectory)
+  end
+
   test "appends JSONL files" do
     path =
       Path.join(
@@ -107,6 +161,11 @@ defmodule CrucibleSignalTraceTest do
     assert event.name == "crucible.forward_trace"
     assert event.attributes.model_ref == "model"
     assert event.attributes.signal_count == 0
+
+    assert {:ok, evidence} = CrucibleSignalTrace.Export.AITrace.to_evidence(trace)
+    assert evidence.schema == "crucible.aitrace.evidence"
+    assert evidence.version == 1
+    assert evidence.trace_id == "trace-export"
   end
 
   defp signal_ref(signal_type, signal_id) do
@@ -114,7 +173,7 @@ defmodule CrucibleSignalTraceTest do
       trace_id: "trace-1",
       signal_id: signal_id,
       signal_type: signal_type,
-      model_ref: "qwen3:fixture",
+      model_ref: "model:fixture",
       dtype: :f32,
       shape: {1, 3}
     )

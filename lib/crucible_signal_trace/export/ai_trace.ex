@@ -8,6 +8,8 @@ defmodule CrucibleSignalTrace.Export.AITrace do
 
   alias CrucibleSignalTrace.ForwardTrace
 
+  @callback to_evidence(ForwardTrace.t()) :: {:ok, map()} | {:error, term()}
+
   def event(%ForwardTrace{} = trace) do
     %{
       name: "crucible.forward_trace",
@@ -22,4 +24,7 @@ defmodule CrucibleSignalTrace.Export.AITrace do
       }
     }
   end
+
+  def to_evidence(%ForwardTrace{} = trace),
+    do: CrucibleSignalTrace.Export.AITrace.V1.to_evidence(trace)
 end
