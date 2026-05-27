@@ -99,6 +99,19 @@ defmodule CrucibleSignalTrace.JSONL do
     }
   end
 
+  def matrix_row(trace_id, matrix, row) when matrix in [:model, :backend, :signal, :generation] do
+    v4_event(:"#{matrix}_matrix_row", trace_id: trace_id, row: row)
+  end
+
+  def capability_blocker(trace_id, capability, reason, attrs \\ []) do
+    v4_event(
+      :capability_blocker,
+      attrs
+      |> normalize_map()
+      |> Map.merge(%{trace_id: trace_id, capability: capability, reason: reason})
+    )
+  end
+
   def trace_end(trace_id, summary \\ %{}),
     do: %{event_type: :trace_end, trace_id: trace_id, summary: summary}
 

@@ -221,6 +221,99 @@ defmodule CrucibleSignalTraceTest do
     assert String.starts_with?(trace.metadata.trace_digest, "sha256:")
   end
 
+  test "validates every V5 matrix, blocker, backend, policy, and route event" do
+    trace_id = "trace-v5-events"
+
+    events = [
+      JSONL.v4_event(:backend_event, trace_id: trace_id, backend: :binary, duration_ms: 12),
+      JSONL.matrix_row(trace_id, :model, %{model_id: "gpt2", forward_ok: true}),
+      JSONL.matrix_row(trace_id, :backend, %{backend: "binary", forward_ok: true}),
+      JSONL.matrix_row(trace_id, :signal, %{signal: "hidden_state", status: "unsupported"}),
+      JSONL.matrix_row(trace_id, :generation, %{steps: 8, status: "generation_tokens"}),
+      JSONL.capability_blocker(trace_id, :hidden_state, :blocked_by_bumblebee_api),
+      JSONL.v4_event(:policy_decision, trace_id: trace_id, decision: %{selected_action: :worker}),
+      JSONL.v4_event(:route_decision, trace_id: trace_id, route: %{role_id: "Worker"})
+    ]
+
+    assert Enum.all?(events, &match?(%{}, CrucibleSignalTrace.Validate.validate_event!(&1)))
+    assert "signal_matrix_row" in CrucibleSignalTrace.Validate.event_types()
+  end
+
+  test "ingests a directory of real native trace JSONL files" do
+    root =
+      Path.join(
+        System.tmp_dir!(),
+        "crucible_signal_trace_dir_#{System.unique_integer([:positive])}"
+      )
+
+    File.mkdir_p!(root)
+    on_exit(fn -> File.rm_rf!(root) end)
+
+    for index <- 1..2 do
+      path = Path.join(root, "trace_#{index}.jsonl")
+      trace_id = "trace-dir-#{index}"
+
+      JSONL.write_event!(path, JSONL.v4_event(:trace_start, trace_id: trace_id, model_id: "gpt2"))
+      JSONL.write_event!(path, JSONL.v4_event(:trace_end, trace_id: trace_id, status: :ok))
+    end
+
+    assert [
+             %Crucible.ForwardTrace{trace_id: "trace-dir-1"},
+             %Crucible.ForwardTrace{trace_id: "trace-dir-2"}
+           ] =
+             CrucibleSignalTrace.Ingest.from_directory!(root)
+  end
+
+  test "preserves V5 signal provenance during ingestion" do
+    path =
+      Path.join(
+        System.tmp_dir!(),
+        "crucible_signal_trace_v5_signal_#{System.unique_integer([:positive])}.jsonl"
+      )
+
+    on_exit(fn -> File.rm(path) end)
+
+    signal = %Crucible.SignalRecord{
+      signal_id: "sig-v5",
+      trace_id: "trace-v5-signal",
+      signal_type: :final_logits,
+      model_id: "gpt2",
+      model_revision: "main",
+      model_family: :gpt2,
+      backend: :binary,
+      dtype: :f32,
+      shape: [1, 1, 50257],
+      rank: 3,
+      layer_index: :final,
+      token_index: -1,
+      node_name: "final_logits",
+      capture_method: :axon_predict_output,
+      surface_id: "gpt2-surface",
+      tap_id: "final_logits",
+      capability_status: :captured,
+      tensor_summary: Crucible.TensorSummary.compute([1.0, 0.5, 0.0], entropy: true, top_k: 2)
+    }
+
+    JSONL.write_event!(path, JSONL.v4_event(:trace_start, trace_id: "trace-v5-signal"))
+
+    JSONL.write_event!(
+      path,
+      JSONL.v4_event(:signal_record, trace_id: "trace-v5-signal", signal: signal)
+    )
+
+    JSONL.write_event!(path, JSONL.v4_event(:trace_end, trace_id: "trace-v5-signal", status: :ok))
+
+    {:ok, trace} = CrucibleSignalTrace.Ingest.from_jsonl(path)
+    [ingested] = trace.signals
+
+    assert ingested.model_revision == "main"
+    assert ingested.dtype == :f32
+    assert ingested.shape == [1, 1, 50257]
+    assert ingested.surface_id == "gpt2-surface"
+    assert ingested.tap_id == "final_logits"
+    assert ingested.capability_status == :captured
+  end
+
   test "rejects V4 signal records with inline raw arrays" do
     event =
       JSONL.v4_event(:signal_record,

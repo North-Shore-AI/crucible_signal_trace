@@ -24,6 +24,20 @@ defmodule CrucibleSignalTrace.Ingest do
     assemble(events, Keyword.put(opts, :trace_digest, CrucibleSignalTrace.Digest.file(path)))
   end
 
+  @spec from_directory!(String.t(), keyword()) :: [ForwardTrace.t()]
+  def from_directory!(directory, opts \\ []) when is_binary(directory) do
+    directory
+    |> trace_paths(Keyword.get(opts, :pattern, "**/*.jsonl"))
+    |> Enum.map(&from_jsonl!(&1, opts))
+  end
+
+  @spec from_directory(String.t(), keyword()) :: {:ok, [ForwardTrace.t()]} | {:error, term()}
+  def from_directory(directory, opts \\ []) when is_binary(directory) do
+    {:ok, from_directory!(directory, opts)}
+  rescue
+    error -> {:error, error}
+  end
+
   @spec assemble([map()], keyword()) :: ForwardTrace.t()
   def assemble(events, opts \\ []) when is_list(events) do
     normalized = Enum.map(events, &normalize_keys/1)
@@ -77,11 +91,20 @@ defmodule CrucibleSignalTrace.Ingest do
       provider_kind: atomize(Map.get(signal, :provider_kind)),
       model_id: Map.get(signal, :model_id),
       model_family: atomize(Map.get(signal, :model_family)),
+      model_revision: Map.get(signal, :model_revision),
       backend: atomize(Map.get(signal, :backend)),
+      dtype: atomize(Map.get(signal, :dtype)),
+      shape: Map.get(signal, :shape),
+      rank: Map.get(signal, :rank),
+      device: Map.get(signal, :device),
       layer_index: Map.get(signal, :layer_index),
       token_index: Map.get(signal, :token_index),
       node_name: Map.get(signal, :node_name),
       capture_method: atomize(Map.get(signal, :capture_method)),
+      surface_id: Map.get(signal, :surface_id),
+      tap_id: Map.get(signal, :tap_id),
+      capability_status: atomize(Map.get(signal, :capability_status)),
+      capability_reason: atomize(Map.get(signal, :capability_reason)),
       tensor_summary: tensor_summary(Map.get(signal, :tensor_summary)),
       tensor_ref: tensor_ref(Map.get(signal, :tensor_ref)),
       metadata: Map.get(signal, :metadata, %{})
@@ -117,6 +140,14 @@ defmodule CrucibleSignalTrace.Ingest do
   defp capability_report(nil), do: nil
   defp capability_report(%{capability_report: report}), do: report
   defp capability_report(%{"capability_report" => report}), do: report
+
+  defp trace_paths(directory, pattern) do
+    directory
+    |> Path.join(pattern)
+    |> Path.wildcard()
+    |> Enum.filter(&File.regular?/1)
+    |> Enum.sort()
+  end
 
   defp first_value(events, key) do
     events

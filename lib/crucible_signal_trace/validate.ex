@@ -13,12 +13,19 @@ defmodule CrucibleSignalTrace.Validate do
     tokenizer_load_end
     tap_compile_start
     tap_compile_end
+    backend_event
     forward_start
     signal_record
     generation_start
     generation_step
     generation_end
+    model_matrix_row
+    backend_matrix_row
+    signal_matrix_row
+    generation_matrix_row
+    capability_blocker
     policy_decision
+    route_decision
     forward_end
     trace_end
     error
