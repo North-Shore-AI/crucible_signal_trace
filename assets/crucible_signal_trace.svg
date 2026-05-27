@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200" role="img" aria-labelledby="title desc">
+  <title id="title">crucible_signal_trace logo</title>
+  <desc id="desc">An aurora hexagon with green and magenta trace ribbons.</desc>
+  <defs>
+    <linearGradient id="sky" x1="32" y1="18" x2="164" y2="180" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#081826"/>
+      <stop offset="0.45" stop-color="#151135"/>
+      <stop offset="1" stop-color="#04070f"/>
+    </linearGradient>
+    <linearGradient id="ribbonA" x1="30" y1="62" x2="174" y2="132" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#30ff9a"/>
+      <stop offset="0.55" stop-color="#6fe8ff"/>
+      <stop offset="1" stop-color="#ff4fd8"/>
+    </linearGradient>
+    <filter id="blurGlow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <clipPath id="clip">
+      <polygon points="100,12 176,56 176,144 100,188 24,144 24,56"/>
+    </clipPath>
+  </defs>
+  <g clip-path="url(#clip)">
+    <polygon points="100,12 176,56 176,144 100,188 24,144 24,56" fill="url(#sky)"/>
+    <path d="M24 116 C54 82 76 139 108 94 C132 59 152 98 178 66" fill="none" stroke="url(#ribbonA)" stroke-width="13" stroke-linecap="round" stroke-opacity="0.72" filter="url(#blurGlow)"/>
+    <path d="M18 88 C52 120 75 62 110 103 C135 132 150 96 184 126" fill="none" stroke="#ff58dc" stroke-width="7" stroke-linecap="round" stroke-opacity="0.72"/>
+    <path d="M44 148 H156" stroke="#dffcff" stroke-opacity="0.4" stroke-width="2"/>
+    <g stroke="#dffcff" stroke-width="1.6" stroke-opacity="0.88">
+      <path d="M56 148 V74"/>
+      <path d="M82 148 V98"/>
+      <path d="M108 148 V88"/>
+      <path d="M134 148 V112"/>
+      <path d="M160 148 V64"/>
+    </g>
+    <g fill="#07111d" stroke-width="3">
+      <circle cx="56" cy="74" r="5" stroke="#30ff9a"/>
+      <circle cx="82" cy="98" r="5" stroke="#6fe8ff"/>
+      <circle cx="108" cy="88" r="5" stroke="#ff4fd8"/>
+      <circle cx="134" cy="112" r="5" stroke="#30ff9a"/>
+      <circle cx="160" cy="64" r="5" stroke="#ff4fd8"/>
+    </g>
+  </g>
+  <polygon points="100,12 176,56 176,144 100,188 24,144 24,56" fill="none" stroke="#9bfff0" stroke-width="3"/>
+</svg>
