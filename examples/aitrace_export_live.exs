@@ -1,7 +1,7 @@
 trace =
-  CrucibleSignalTrace.ForwardTrace.new!(
+  Crucible.ForwardTrace.new!(
     trace_id: "trace-aitrace-example",
-    model_ref: "model:fixture",
+    model_id: "model:fixture",
     input_hash: CrucibleSignalTrace.Digest.text("example")
   )
 
