@@ -126,6 +126,9 @@ defmodule CrucibleSignalTrace.Ingest do
       mean: Map.get(summary, :mean),
       stddev: Map.get(summary, :stddev),
       norm_l2: Map.get(summary, :norm_l2),
+      nan_count: Map.get(summary, :nan_count, 0),
+      positive_infinity_count: Map.get(summary, :positive_infinity_count, 0),
+      negative_infinity_count: Map.get(summary, :negative_infinity_count, 0),
       entropy: Map.get(summary, :entropy),
       top_k: Map.get(summary, :top_k),
       digest: Map.get(summary, :digest)
