@@ -1,10 +1,10 @@
 # Provider Neutral Traces
 
-Purpose: describe the V4 JSONL trace stream accepted by the replay stack.
+Purpose: describe the V5 JSONL trace stream accepted by the replay stack.
 
 ## What this covers
 
-Every V4 event row carries `"schema_version": "crucible.trace.v4"`,
+Every V5 event row carries `"schema_version": "crucible.trace.v4"`,
 `event_type`, and `trace_id`. Signal rows contain summaries and references only;
 inline raw tensor arrays are rejected by `CrucibleSignalTrace.Validate`.
 
@@ -12,7 +12,7 @@ inline raw tensor arrays are rejected by `CrucibleSignalTrace.Validate`.
 
 ```elixir
 {:ok, trace} =
-  CrucibleSignalTrace.Ingest.from_jsonl("tmp/crucible_v4/model_forward_live.trace.jsonl")
+  CrucibleSignalTrace.Ingest.from_jsonl("tmp/crucible_v5/traces/native/model_forward_live.trace.jsonl")
 
 trace.signals
 ```
@@ -21,7 +21,7 @@ To write an event:
 
 ```elixir
 CrucibleSignalTrace.JSONL.write_event!(
-  "tmp/crucible_v4/example.trace.jsonl",
+  "tmp/crucible_v5/traces/native/example.trace.jsonl",
   CrucibleSignalTrace.JSONL.v4_event(:trace_start, trace_id: "tr_1")
 )
 ```

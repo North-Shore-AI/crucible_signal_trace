@@ -87,12 +87,17 @@ line = JSONL.encode_line!(trace)
 
 Documentation can be generated with `mix docs` and published to HexDocs.
 
-## V4 Status
+## V5 Status
 
-Status: `schema-compatible`.
+Status: `trace-ingestion-real-artifact-passing`.
 
-V4 trace streams use `"schema_version": "crucible.trace.v4"`.
+V5 continues to use `"schema_version": "crucible.trace.v4"` for the canonical
+JSONL wire format and expands the accepted event set for backend, model,
+signal, generation, capability, policy, and route-decision rows.
+
 `CrucibleSignalTrace.JSONL.write_event!/2`,
 `CrucibleSignalTrace.JSONL.stream!/1`, `CrucibleSignalTrace.Validate`, and
-`CrucibleSignalTrace.Ingest.from_jsonl/2` validate and assemble provider-neutral
-JSONL traces without inline raw tensor arrays.
+`CrucibleSignalTrace.Ingest.from_jsonl/2` validate and assemble native
+Bumblebee and Python/PyTorch traces without inline raw tensor arrays. The V5
+gate is recorded at
+`tmp/crucible_v5/transcripts/crucible_signal_trace_mix_ci.log`.
