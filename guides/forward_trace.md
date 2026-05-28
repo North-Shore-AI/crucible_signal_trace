@@ -9,7 +9,7 @@ Traces reference signals and summaries; they should not embed raw tensors.
 ## Worked Example
 
 ```elixir
-CrucibleSignalTrace.ForwardTrace.new!(trace_id: "trace-1", model_ref: "model")
+Crucible.ForwardTrace.new!(trace_id: "trace-1", model_id: "model")
 ```
 
 ## Related Guides

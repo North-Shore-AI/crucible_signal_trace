@@ -83,7 +83,7 @@ defmodule CrucibleSignalTrace.Ingest do
   defp signal_record(signal) when is_map(signal) do
     signal = normalize_keys(signal)
 
-    %Crucible.SignalRecord{
+    Crucible.SignalRecord.new!(
       signal_id: Map.get(signal, :signal_id),
       trace_id: Map.get(signal, :trace_id),
       run_id: Map.get(signal, :run_id),
@@ -108,7 +108,7 @@ defmodule CrucibleSignalTrace.Ingest do
       tensor_summary: tensor_summary(Map.get(signal, :tensor_summary)),
       tensor_ref: tensor_ref(Map.get(signal, :tensor_ref)),
       metadata: Map.get(signal, :metadata, %{})
-    }
+    )
   end
 
   defp tensor_summary(nil), do: nil

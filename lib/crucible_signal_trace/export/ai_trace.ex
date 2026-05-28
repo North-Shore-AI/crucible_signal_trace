@@ -6,25 +6,23 @@ defmodule CrucibleSignalTrace.Export.AITrace do
   this event map to their own AITrace facade.
   """
 
-  alias CrucibleSignalTrace.ForwardTrace
+  @callback to_evidence(Crucible.ForwardTrace.t()) :: {:ok, map()} | {:error, term()}
 
-  @callback to_evidence(ForwardTrace.t()) :: {:ok, map()} | {:error, term()}
-
-  def event(%ForwardTrace{} = trace) do
+  def event(%Crucible.ForwardTrace{} = trace) do
     %{
       name: "crucible.forward_trace",
       trace_id: trace.trace_id,
       attributes: %{
-        model_ref: trace.model_ref,
+        model_ref: trace.model_id,
         input_hash: trace.input_hash,
         tap_plan_ref: trace.tap_plan_ref,
-        signal_count: length(trace.signal_records),
+        signal_count: length(trace.signals),
         has_layer_trajectory: trace.layer_trajectory != nil,
-        digest: ForwardTrace.digest(trace)
+        digest: Crucible.ForwardTrace.digest(trace)
       }
     }
   end
 
-  def to_evidence(%ForwardTrace{} = trace),
+  def to_evidence(%Crucible.ForwardTrace{} = trace),
     do: CrucibleSignalTrace.Export.AITrace.V1.to_evidence(trace)
 end

@@ -9,7 +9,7 @@ AITrace export produces a versioned evidence map without taking a runtime depend
 ## Worked Example
 
 ```elixir
-trace = CrucibleSignalTrace.ForwardTrace.new!(trace_id: "trace-1", model_ref: "model")
+trace = Crucible.ForwardTrace.new!(trace_id: "trace-1", model_id: "model")
 CrucibleSignalTrace.Export.AITrace.to_evidence(trace)
 ```
 

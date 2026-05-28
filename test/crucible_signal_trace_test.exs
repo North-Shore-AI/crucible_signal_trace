@@ -2,15 +2,13 @@ defmodule CrucibleSignalTraceTest do
   use ExUnit.Case
   doctest CrucibleSignalTrace
 
-  alias CrucibleSignal.{SignalRef, TensorSummary}
+  alias CrucibleSignal.SignalRef
 
   alias CrucibleSignalTrace.{
     Digest,
-    ForwardTrace,
     JSONL,
     LayerTrajectory,
     Redactor,
-    SignalRecord,
     TraceEvent
   }
 
@@ -23,9 +21,18 @@ defmodule CrucibleSignalTraceTest do
     hidden_ref = signal_ref(:middle_residuals, "hidden")
 
     record =
-      SignalRecord.new!(
-        signal_ref: hidden_ref,
-        summary: TensorSummary.summarize([1.0, 2.0, 3.0]),
+      Crucible.SignalRecord.new!(
+        signal_id: hidden_ref.signal_id,
+        trace_id: hidden_ref.trace_id,
+        signal_type: hidden_ref.signal_type,
+        model_id: hidden_ref.model_ref,
+        dtype: hidden_ref.dtype,
+        shape: hidden_ref.shape.dims,
+        rank: hidden_ref.shape.rank,
+        layer_index: hidden_ref.layer_index,
+        token_index: hidden_ref.token_index,
+        capture_method: hidden_ref.capture_mode,
+        tensor_summary: Crucible.TensorSummary.compute([1.0, 2.0, 3.0]),
         metadata: %{layer: 12}
       )
 
@@ -37,42 +44,46 @@ defmodule CrucibleSignalTraceTest do
       ])
 
     trace =
-      ForwardTrace.new!(
+      Crucible.ForwardTrace.new!(
         trace_id: "trace-1",
-        model_ref: "model:fixture",
+        model_id: "model:fixture",
         input_hash: Digest.text("hello"),
         tap_plan_ref: "tap-plan-1",
-        signal_records: [record],
+        signals: [record],
         layer_trajectory: trajectory,
         final_logits: logits_ref,
         cache_summary: %{blocks: 2}
       )
-      |> ForwardTrace.complete()
+      |> Crucible.ForwardTrace.complete()
 
     assert trace.final_logits.signal_id == "logits"
     assert trace.cache_summary == %{blocks: 2}
     assert LayerTrajectory.ordered_layers(trace.layer_trajectory) == [:embedding, 12, :final]
-    assert is_binary(ForwardTrace.digest(trace))
+    assert is_binary(Crucible.ForwardTrace.digest(trace))
   end
 
   test "serializes traces to JSONL" do
+    signal =
+      Crucible.SignalRecord.new!(
+        signal_id: "embedding",
+        trace_id: "trace-json",
+        signal_type: :embeddings,
+        model_id: "model",
+        tensor_summary: Crucible.TensorSummary.compute([1, 2, 3])
+      )
+
     trace =
       CrucibleSignalTrace.forward_trace!(
         trace_id: "trace-json",
-        model_ref: "model",
-        signal_records: [
-          [
-            signal_ref: signal_ref(:embeddings, "embedding"),
-            summary: TensorSummary.summarize([1, 2, 3])
-          ]
-        ]
+        model_id: "model",
+        signals: [signal]
       )
 
     line = JSONL.encode_line!(trace)
 
     assert {:ok, decoded} = JSONL.decode_line(line)
     assert decoded["trace_id"] == "trace-json"
-    assert [%{"signal_ref" => %{"signal_type" => "embeddings"}}] = decoded["signal_records"]
+    assert [%{"signal_type" => "embeddings"}] = decoded["signals"]
   end
 
   test "streams JSONL event envelopes" do
@@ -154,7 +165,7 @@ defmodule CrucibleSignalTraceTest do
   end
 
   test "builds AITrace-compatible export event payload" do
-    trace = ForwardTrace.new!(trace_id: "trace-export", model_ref: "model")
+    trace = Crucible.ForwardTrace.new!(trace_id: "trace-export", model_id: "model")
 
     event = CrucibleSignalTrace.Export.AITrace.event(trace)
 
@@ -180,19 +191,20 @@ defmodule CrucibleSignalTraceTest do
     trace_id = "trace-v4"
     summary = Crucible.TensorSummary.compute([1.0, 2.0, 3.0], entropy: true, top_k: 2)
 
-    signal = %Crucible.SignalRecord{
-      signal_id: "sig-v4",
-      trace_id: trace_id,
-      run_id: "run-v4",
-      signal_type: :final_logits,
-      provider_kind: :elixir_bumblebee,
-      model_id: "hf-internal-testing/tiny-random-gpt2",
-      model_family: :gpt2,
-      backend: :exla_cpu,
-      node_name: "final_logits",
-      capture_method: :axon_hook,
-      tensor_summary: summary
-    }
+    signal =
+      Crucible.SignalRecord.new!(
+        signal_id: "sig-v4",
+        trace_id: trace_id,
+        run_id: "run-v4",
+        signal_type: :final_logits,
+        provider_kind: :elixir_bumblebee,
+        model_id: "hf-internal-testing/tiny-random-gpt2",
+        model_family: :gpt2,
+        backend: :exla_cpu,
+        node_name: "final_logits",
+        capture_method: :axon_hook,
+        tensor_summary: summary
+      )
 
     JSONL.write_event!(
       path,
@@ -273,26 +285,27 @@ defmodule CrucibleSignalTraceTest do
 
     on_exit(fn -> File.rm(path) end)
 
-    signal = %Crucible.SignalRecord{
-      signal_id: "sig-v5",
-      trace_id: "trace-v5-signal",
-      signal_type: :final_logits,
-      model_id: "gpt2",
-      model_revision: "main",
-      model_family: :gpt2,
-      backend: :binary,
-      dtype: :f32,
-      shape: [1, 1, 50257],
-      rank: 3,
-      layer_index: :final,
-      token_index: -1,
-      node_name: "final_logits",
-      capture_method: :axon_predict_output,
-      surface_id: "gpt2-surface",
-      tap_id: "final_logits",
-      capability_status: :captured,
-      tensor_summary: Crucible.TensorSummary.compute([1.0, 0.5, 0.0], entropy: true, top_k: 2)
-    }
+    signal =
+      Crucible.SignalRecord.new!(
+        signal_id: "sig-v5",
+        trace_id: "trace-v5-signal",
+        signal_type: :final_logits,
+        model_id: "gpt2",
+        model_revision: "main",
+        model_family: :gpt2,
+        backend: :binary,
+        dtype: :f32,
+        shape: [1, 1, 50257],
+        rank: 3,
+        layer_index: :final,
+        token_index: -1,
+        node_name: "final_logits",
+        capture_method: :axon_predict_output,
+        surface_id: "gpt2-surface",
+        tap_id: "final_logits",
+        capability_status: :captured,
+        tensor_summary: Crucible.TensorSummary.compute([1.0, 0.5, 0.0], entropy: true, top_k: 2)
+      )
 
     JSONL.write_event!(path, JSONL.v4_event(:trace_start, trace_id: "trace-v5-signal"))
 

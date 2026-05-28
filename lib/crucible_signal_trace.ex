@@ -11,6 +11,6 @@ defmodule CrucibleSignalTrace do
   @doc "Returns the package version."
   def version, do: @version
 
-  @doc "Builds a forward trace."
-  defdelegate forward_trace!(attrs), to: CrucibleSignalTrace.ForwardTrace, as: :new!
+  @doc "Builds a canonical forward trace."
+  defdelegate forward_trace!(attrs), to: Crucible.ForwardTrace, as: :new!
 end
