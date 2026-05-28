@@ -1,6 +1,6 @@
 defmodule CrucibleSignalTrace.Ingest do
   @moduledoc """
-  V4 JSONL ingestion and ForwardTrace assembly.
+  V4/V5 JSONL ingestion and ForwardTrace assembly.
   """
 
   alias Crucible.ForwardTrace

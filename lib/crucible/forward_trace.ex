@@ -1,6 +1,6 @@
 defmodule Crucible.ForwardTrace do
   @moduledoc """
-  V4 canonical forward trace transaction assembled from JSONL events.
+  V4/V5 canonical forward trace transaction assembled from JSONL events.
   """
 
   @derive Jason.Encoder

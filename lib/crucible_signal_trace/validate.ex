@@ -1,6 +1,6 @@
 defmodule CrucibleSignalTrace.Validate do
   @moduledoc """
-  Strict V4 trace event validation.
+  Strict V4/V5 trace event validation.
   """
 
   @schema_version "crucible.trace.v4"
@@ -44,7 +44,7 @@ defmodule CrucibleSignalTrace.Validate do
          :ok <- validate_no_raw_arrays(event) do
       event
     else
-      {:error, reason} -> raise ArgumentError, "invalid v4 trace event: #{inspect(reason)}"
+      {:error, reason} -> raise ArgumentError, "invalid Crucible trace event: #{inspect(reason)}"
     end
   end
 
