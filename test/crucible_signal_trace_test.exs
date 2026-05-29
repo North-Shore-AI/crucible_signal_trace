@@ -62,6 +62,46 @@ defmodule CrucibleSignalTraceTest do
     assert is_binary(Crucible.ForwardTrace.digest(trace))
   end
 
+  test "validate_forward_trace accepts bounded completed traces at shape level" do
+    trace =
+      Crucible.ForwardTrace.new!(
+        trace_id: "trace-validate",
+        provider_kind: :fixture,
+        model_id: "model:fixture",
+        signals: [
+          Crucible.SignalRecord.new!(
+            signal_id: "logits",
+            trace_id: "trace-validate",
+            signal_type: :final_logits,
+            model_id: "model:fixture"
+          )
+        ]
+      )
+
+    assert :ok = CrucibleSignalTrace.validate_forward_trace(trace, :shape)
+  end
+
+  test "validate_forward_trace rejects traces with missing required fields" do
+    trace = %Crucible.ForwardTrace{trace_id: "trace-missing", signals: []}
+
+    assert {:error, {:missing_trace_fields, fields}} =
+             CrucibleSignalTrace.Validate.validate_forward_trace(trace, :shape)
+
+    assert :provider_kind in fields
+    assert :model_id in fields
+
+    assert {:error, :empty_signals} =
+             CrucibleSignalTrace.Validate.validate_forward_trace(
+               %Crucible.ForwardTrace{
+                 trace_id: "trace-empty",
+                 provider_kind: :fixture,
+                 model_id: "model:fixture",
+                 signals: []
+               },
+               :shape
+             )
+  end
+
   test "serializes traces to JSONL" do
     signal =
       Crucible.SignalRecord.new!(
@@ -177,6 +217,32 @@ defmodule CrucibleSignalTraceTest do
     assert evidence.schema == "crucible.aitrace.evidence"
     assert evidence.version == 1
     assert evidence.trace_id == "trace-export"
+  end
+
+  test "loads checked-in minimal fixture and roundtrips JSON and JSONL" do
+    json_path = Path.join(__DIR__, "fixtures/minimal_forward_trace.json")
+    jsonl_path = Path.join(__DIR__, "fixtures/minimal_forward_trace.jsonl")
+
+    {:ok, decoded} = json_path |> File.read!() |> Jason.decode()
+    assert decoded["trace_id"] == "trace-fixture-minimal"
+
+    trace_from_json =
+      decoded
+      |> Crucible.ForwardTrace.new!()
+      |> Crucible.ForwardTrace.complete()
+
+    assert trace_from_json.provider_kind in [:fixture, "fixture"]
+    assert [%Crucible.SignalRecord{signal_id: "sig-fixture-final"}] = trace_from_json.signals
+
+    reencoded = JSONL.encode_line!(trace_from_json)
+    assert {:ok, roundtrip} = JSONL.decode_line(reencoded)
+    assert roundtrip["trace_id"] == "trace-fixture-minimal"
+
+    assert {:ok, ingested} = CrucibleSignalTrace.Ingest.from_jsonl(jsonl_path)
+    assert ingested.trace_id == "trace-fixture-minimal"
+    assert ingested.status == :ok
+    assert [%Crucible.SignalRecord{signal_type: :final_logits}] = ingested.signals
+    assert is_binary(ingested.metadata.trace_digest)
   end
 
   test "writes, validates, and ingests V4 JSONL events" do

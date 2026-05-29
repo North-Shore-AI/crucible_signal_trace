@@ -1,0 +1,163 @@
+{
+  "status": "ok",
+  "events": [
+    {
+      "timestamp": "2026-05-28T00:00:00Z",
+      "trace_id": "trace-fixture-minimal",
+      "run_id": "run-fixture-minimal",
+      "provider_kind": "fixture",
+      "model_id": "model:fixture",
+      "model_family": "example_transformer",
+      "backend": "fixture",
+      "event_type": "trace_start",
+      "schema_version": "crucible.trace.v4"
+    },
+    {
+      "timestamp": "2026-05-28T00:00:01Z",
+      "signal": {
+        "device": null,
+        "metadata": {},
+        "node_name": "final_logits",
+        "signal_id": "sig-fixture-final",
+        "trace_id": "trace-fixture-minimal",
+        "run_id": "run-fixture-minimal",
+        "signal_type": "final_logits",
+        "provider_kind": "fixture",
+        "model_id": "model:fixture",
+        "model_family": "example_transformer",
+        "backend": "fixture",
+        "capture_method": "fixture_predict_fun",
+        "tensor_summary": {
+          "max": 0.3,
+          "min": 0.1,
+          "digest": "sha256:9ec0014e079219a86fabfc2de56c19d41e019f6d088f5d10fcfc1ecdec06ae31",
+          "entropy": 1.0952872686537243,
+          "top_k": [
+            {
+              "logit": 0.3,
+              "probability": 0.3671654011109255,
+              "token_id": 2
+            },
+            {
+              "logit": 0.2,
+              "probability": 0.3322249935333473,
+              "token_id": 1
+            }
+          ],
+          "dtype": "f64",
+          "mean": 0.20000000000000004,
+          "nan_count": 0,
+          "negative_infinity_count": 0,
+          "norm_l2": 0.37416573867739417,
+          "positive_infinity_count": 0,
+          "rank": 1,
+          "shape": [
+            3
+          ],
+          "stddev": 0.0816496580927726
+        },
+        "dtype": null,
+        "rank": null,
+        "shape": null,
+        "tensor_ref": null,
+        "model_revision": null,
+        "layer_index": null,
+        "token_index": null,
+        "surface_id": null,
+        "tap_id": null,
+        "capability_status": null,
+        "capability_reason": null
+      },
+      "trace_id": "trace-fixture-minimal",
+      "event_type": "signal_record",
+      "schema_version": "crucible.trace.v4"
+    },
+    {
+      "status": "ok",
+      "timestamp": "2026-05-28T00:00:02Z",
+      "trace_id": "trace-fixture-minimal",
+      "event_type": "trace_end",
+      "schema_version": "crucible.trace.v4"
+    }
+  ],
+  "started_at": "2026-05-28T00:00:00Z",
+  "metadata": {
+    "trace_digest": "sha256:1b35bf7050d6fdc5d677fbdf3899eb8bbc415d6a28570627342e1745b1f56212"
+  },
+  "trace_id": "trace-fixture-minimal",
+  "run_id": "run-fixture-minimal",
+  "final_logits": null,
+  "provider_kind": "fixture",
+  "model_id": "model:fixture",
+  "model_family": "example_transformer",
+  "backend": "fixture",
+  "prompt_digest": null,
+  "tap_plan_digest": null,
+  "capability_report_digest": null,
+  "duration_ms": null,
+  "cache_summary": null,
+  "capability_report": null,
+  "completed_at": null,
+  "decoding_steps": [],
+  "ended_at": "2026-05-28T00:00:02Z",
+  "input_hash": null,
+  "layer_trajectory": null,
+  "policy_decision_refs": [],
+  "signals": [
+    {
+      "device": null,
+      "metadata": {},
+      "node_name": "final_logits",
+      "shape": null,
+      "rank": null,
+      "dtype": null,
+      "signal_id": "sig-fixture-final",
+      "trace_id": "trace-fixture-minimal",
+      "run_id": "run-fixture-minimal",
+      "signal_type": "final_logits",
+      "provider_kind": "fixture",
+      "model_id": "model:fixture",
+      "model_family": "example_transformer",
+      "model_revision": null,
+      "backend": "fixture",
+      "layer_index": null,
+      "token_index": null,
+      "capture_method": "fixture_predict_fun",
+      "surface_id": null,
+      "tap_id": null,
+      "capability_status": null,
+      "capability_reason": null,
+      "tensor_summary": {
+        "max": 0.3,
+        "min": 0.1,
+        "digest": "sha256:9ec0014e079219a86fabfc2de56c19d41e019f6d088f5d10fcfc1ecdec06ae31",
+        "shape": [
+          3
+        ],
+        "rank": 1,
+        "dtype": "f64",
+        "mean": 0.20000000000000004,
+        "stddev": 0.0816496580927726,
+        "norm_l2": 0.37416573867739417,
+        "nan_count": 0,
+        "positive_infinity_count": 0,
+        "negative_infinity_count": 0,
+        "entropy": 1.0952872686537243,
+        "top_k": [
+          {
+            "logit": 0.3,
+            "probability": 0.3671654011109255,
+            "token_id": 2
+          },
+          {
+            "logit": 0.2,
+            "probability": 0.3322249935333473,
+            "token_id": 1
+          }
+        ]
+      },
+      "tensor_ref": null
+    }
+  ],
+  "tap_plan_ref": null
+}

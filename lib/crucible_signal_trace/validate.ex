@@ -57,6 +57,57 @@ defmodule CrucibleSignalTrace.Validate do
     error in ArgumentError -> {:error, error.message}
   end
 
+  @doc """
+  Validates a completed forward trace.
+
+  Levels:
+
+    * `:shape` — required trace fields and bounded signal records
+  """
+  @spec validate_forward_trace(Crucible.ForwardTrace.t(), atom()) :: :ok | {:error, term()}
+  def validate_forward_trace(%Crucible.ForwardTrace{} = trace, :shape) do
+    with :ok <- require_trace_fields(trace),
+         :ok <- validate_signals(trace) do
+      :ok
+    end
+  end
+
+  def validate_forward_trace(trace, level),
+    do: {:error, {:unsupported_validation_level, level, trace}}
+
+  defp require_trace_fields(%Crucible.ForwardTrace{} = trace) do
+    missing =
+      [:trace_id, :provider_kind, :model_id]
+      |> Enum.reject(fn field ->
+        value = Map.fetch!(trace, field)
+        value not in [nil, ""]
+      end)
+
+    if missing == [], do: :ok, else: {:error, {:missing_trace_fields, missing}}
+  end
+
+  defp validate_signals(%Crucible.ForwardTrace{signals: signals, trace_id: trace_id}) do
+    cond do
+      signals == [] ->
+        {:error, :empty_signals}
+
+      Enum.all?(signals, &match?(%Crucible.SignalRecord{}, &1)) ->
+        validate_signal_trace_ids(signals, trace_id)
+
+      true ->
+        {:error, :invalid_signal_records}
+    end
+  end
+
+  defp validate_signal_trace_ids(signals, trace_id) do
+    mismatched =
+      Enum.reject(signals, fn %Crucible.SignalRecord{trace_id: signal_trace_id} ->
+        signal_trace_id == trace_id
+      end)
+
+    if mismatched == [], do: :ok, else: {:error, {:signal_trace_id_mismatch, trace_id}}
+  end
+
   defp require_base(event) do
     missing =
       [:event_type, :trace_id, :schema_version]

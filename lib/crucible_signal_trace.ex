@@ -13,4 +13,11 @@ defmodule CrucibleSignalTrace do
 
   @doc "Builds a canonical forward trace."
   defdelegate forward_trace!(attrs), to: Crucible.ForwardTrace, as: :new!
+
+  @doc "Validates a completed forward trace at the requested level."
+  defdelegate validate_forward_trace(trace, level \\ :shape),
+    to: CrucibleSignalTrace.Validate
+
+  @doc "Loads a trace artifact for replay without a live provider."
+  defdelegate replay_load(path, opts \\ []), to: CrucibleSignalTrace.Replay, as: :load
 end
