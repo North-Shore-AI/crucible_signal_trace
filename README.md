@@ -62,6 +62,17 @@ trace =
 line = JSONL.encode_line!(trace)
 ```
 
+Generic dataset helpers are available for downstream trace-derived datasets:
+
+```elixir
+{:ok, rows} = CrucibleSignalTrace.DatasetDigest.read_jsonl("fitness.jsonl")
+{:ok, report} = CrucibleSignalTrace.DatasetDigest.digest_rows(rows)
+scan = CrucibleSignalTrace.SecretScan.scan(rows)
+```
+
+The dataset reader keeps decoded JSON keys as strings. The secret scanner uses
+fixed-string checks and reports only paths and terms, not matched values.
+
 ## Guides
 
 - [Quickstart](guides/quickstart.md)

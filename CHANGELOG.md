@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+- Added generic string-key JSONL dataset digest helpers and fixed-string nested
+  secret scanning for trace-derived datasets.
 - Added strict V4 JSONL event validation for `crucible.trace.v4`, canonical
   writer/reader helpers, trace ingestion, and `Crucible.ForwardTrace` assembly.
 - Added V5 event validation for backend/model/signal/generation matrix rows,
