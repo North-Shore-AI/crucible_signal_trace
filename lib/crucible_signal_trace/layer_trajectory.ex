@@ -3,6 +3,8 @@ defmodule CrucibleSignalTrace.LayerTrajectory do
   Ordered layer trajectory summaries for a forward pass.
   """
 
+  alias CrucibleSignalTrace.SafeTerms
+
   @derive Jason.Encoder
   defstruct points: [], metadata: %{}
 
@@ -77,12 +79,7 @@ defmodule CrucibleSignalTrace.LayerTrajectory do
 
   defp normalize_point(point) when is_list(point), do: point |> Map.new() |> normalize_point()
 
-  defp normalize_point(point) when is_map(point) do
-    Map.new(point, fn
-      {key, value} when is_binary(key) -> {String.to_atom(key), value}
-      {key, value} -> {key, value}
-    end)
-  end
+  defp normalize_point(point) when is_map(point), do: SafeTerms.normalize_keys(point)
 
   defp fetch_vector(%{vector: vector}) when is_list(vector),
     do: {:ok, Enum.map(vector, &(&1 * 1.0))}

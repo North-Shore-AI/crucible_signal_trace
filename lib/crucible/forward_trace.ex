@@ -3,6 +3,8 @@ defmodule Crucible.ForwardTrace do
   Canonical forward trace transaction assembled from bounded signal events.
   """
 
+  alias CrucibleSignalTrace.SafeTerms
+
   @derive Jason.Encoder
   defstruct [
     :trace_id,
@@ -145,19 +147,10 @@ defmodule Crucible.ForwardTrace do
 
   defp atomize(nil), do: nil
   defp atomize(value) when is_atom(value), do: value
-  defp atomize(value) when is_binary(value), do: String.to_atom(value)
+  defp atomize(value) when is_binary(value), do: SafeTerms.atomize_existing(value)
   defp atomize(value), do: value
 
-  defp normalize_keys(value) when is_map(value) do
-    Map.new(value, fn
-      {key, value} when is_binary(key) -> {String.to_atom(key), normalize_nested(value)}
-      {key, value} -> {key, normalize_nested(value)}
-    end)
-  end
-
-  defp normalize_nested(value) when is_map(value), do: normalize_keys(value)
-  defp normalize_nested(value) when is_list(value), do: Enum.map(value, &normalize_nested/1)
-  defp normalize_nested(value), do: value
+  defp normalize_keys(value) when is_map(value), do: SafeTerms.normalize_keys(value)
 
   defp require_fields(attrs, fields) do
     missing =
@@ -166,10 +159,5 @@ defmodule Crucible.ForwardTrace do
     if missing == [], do: :ok, else: {:error, {:missing_required_fields, missing}}
   end
 
-  defp atom_keys(attrs) do
-    Map.new(attrs, fn
-      {key, value} when is_binary(key) -> {String.to_atom(key), value}
-      {key, value} -> {key, value}
-    end)
-  end
+  defp atom_keys(attrs), do: SafeTerms.normalize_keys(attrs)
 end

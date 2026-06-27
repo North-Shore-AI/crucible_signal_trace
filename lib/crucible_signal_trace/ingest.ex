@@ -4,7 +4,7 @@ defmodule CrucibleSignalTrace.Ingest do
   """
 
   alias Crucible.ForwardTrace
-  alias CrucibleSignalTrace.JSONL
+  alias CrucibleSignalTrace.{JSONL, SafeTerms, TokenStep}
 
   @spec from_jsonl(String.t(), keyword()) :: {:ok, ForwardTrace.t()} | {:error, term()}
   def from_jsonl(path, opts \\ []) when is_binary(path) do
@@ -61,6 +61,7 @@ defmodule CrucibleSignalTrace.Ingest do
       capability_report_digest: first_value(normalized, :capability_report_digest),
       events: normalized,
       signals: signals(normalized),
+      decoding_steps: token_steps(normalized),
       capability_report: capability_report(capability),
       started_at: parse_time(Map.get(start, :timestamp)),
       ended_at: parse_time(Map.get(finish, :timestamp)),
@@ -76,6 +77,12 @@ defmodule CrucibleSignalTrace.Ingest do
     |> Enum.map(&Map.get(&1, :signal))
     |> Enum.reject(&is_nil/1)
     |> Enum.map(&signal_record/1)
+  end
+
+  defp token_steps(events) do
+    events
+    |> Enum.filter(&(Map.get(&1, :event_type) == "token_step"))
+    |> Enum.map(&TokenStep.new!/1)
   end
 
   defp signal_record(%Crucible.SignalRecord{} = record), do: record
@@ -171,17 +178,8 @@ defmodule CrucibleSignalTrace.Ingest do
 
   defp atomize(nil), do: nil
   defp atomize(value) when is_atom(value), do: value
-  defp atomize(value) when is_binary(value), do: String.to_atom(value)
+  defp atomize(value) when is_binary(value), do: SafeTerms.atomize_existing(value)
   defp atomize(value), do: value
 
-  defp normalize_keys(value) when is_map(value) do
-    Map.new(value, fn
-      {key, value} when is_binary(key) -> {String.to_atom(key), normalize_nested(value)}
-      {key, value} -> {key, normalize_nested(value)}
-    end)
-  end
-
-  defp normalize_nested(value) when is_map(value), do: normalize_keys(value)
-  defp normalize_nested(value) when is_list(value), do: Enum.map(value, &normalize_nested/1)
-  defp normalize_nested(value), do: value
+  defp normalize_keys(value) when is_map(value), do: SafeTerms.normalize_keys(value)
 end

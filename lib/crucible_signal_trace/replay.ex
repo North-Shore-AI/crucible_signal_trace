@@ -11,7 +11,7 @@ defmodule CrucibleSignalTrace.Replay do
   alias Crucible.CapabilityReport
   alias Crucible.ForwardTrace
   alias Crucible.SignalRecord
-  alias CrucibleSignalTrace.{Ingest, Validate}
+  alias CrucibleSignalTrace.{Ingest, SafeTerms, Validate}
   alias CrucibleTap.{Surface, SurfaceNode, TapPlan}
 
   @type filter :: %{
@@ -199,6 +199,6 @@ defmodule CrucibleSignalTrace.Replay do
   end
 
   defp atomize(value) when is_atom(value), do: value
-  defp atomize(value) when is_binary(value), do: String.to_atom(value)
+  defp atomize(value) when is_binary(value), do: SafeTerms.atomize_existing(value)
   defp atomize(value), do: value
 end

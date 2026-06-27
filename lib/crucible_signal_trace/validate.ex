@@ -4,6 +4,7 @@ defmodule CrucibleSignalTrace.Validate do
   """
 
   @schema_version "crucible.trace.v4"
+  alias CrucibleSignalTrace.{SafeTerms, TokenStep}
 
   @event_types MapSet.new(~w(
     trace_start
@@ -17,6 +18,7 @@ defmodule CrucibleSignalTrace.Validate do
     forward_start
     signal_record
     generation_start
+    token_step
     generation_step
     generation_end
     model_matrix_row
@@ -36,11 +38,15 @@ defmodule CrucibleSignalTrace.Validate do
 
   @spec validate_event!(map()) :: map()
   def validate_event!(event) when is_map(event) do
-    event = normalize_keys(event)
+    event =
+      event
+      |> normalize_keys()
+      |> Map.update(:event_type, nil, &SafeTerms.event_type/1)
 
     with :ok <- require_base(event),
          :ok <- validate_schema(event),
          :ok <- validate_type(event),
+         :ok <- validate_payload(event),
          :ok <- validate_no_raw_arrays(event) do
       event
     else
@@ -63,11 +69,28 @@ defmodule CrucibleSignalTrace.Validate do
   Levels:
 
     * `:shape` — required trace fields and bounded signal records
+    * `:events` — shape plus canonical event stream validation
+    * `:replay` — replay-safe shape, event, and capability evidence
   """
   @spec validate_forward_trace(Crucible.ForwardTrace.t(), atom()) :: :ok | {:error, term()}
   def validate_forward_trace(%Crucible.ForwardTrace{} = trace, :shape) do
     with :ok <- require_trace_fields(trace),
          :ok <- validate_signals(trace) do
+      :ok
+    end
+  end
+
+  def validate_forward_trace(%Crucible.ForwardTrace{} = trace, :events) do
+    with :ok <- validate_forward_trace(trace, :shape),
+         :ok <- validate_trace_events(trace, require_events?: true) do
+      :ok
+    end
+  end
+
+  def validate_forward_trace(%Crucible.ForwardTrace{} = trace, :replay) do
+    with :ok <- validate_forward_trace(trace, :shape),
+         :ok <- require_capability_report(trace),
+         :ok <- validate_trace_events(trace, require_events?: false) do
       :ok
     end
   end
@@ -131,6 +154,50 @@ defmodule CrucibleSignalTrace.Validate do
 
   defp validate_type(event), do: {:error, {:invalid_event_type, Map.get(event, :event_type)}}
 
+  defp validate_payload(%{event_type: "token_step"} = event) do
+    case TokenStep.new(event) do
+      {:ok, _step} -> :ok
+      {:error, reason} -> {:error, {:invalid_token_step, reason}}
+    end
+  end
+
+  defp validate_payload(_event), do: :ok
+
+  defp validate_trace_events(%Crucible.ForwardTrace{events: events, trace_id: trace_id}, opts) do
+    cond do
+      events == [] and Keyword.get(opts, :require_events?, false) ->
+        {:error, :empty_events}
+
+      events == [] ->
+        :ok
+
+      true ->
+        validate_event_trace_ids(events, trace_id)
+    end
+  end
+
+  defp validate_event_trace_ids(events, trace_id) do
+    Enum.reduce_while(events, :ok, fn event, :ok ->
+      case validate_event(event) do
+        {:ok, %{trace_id: ^trace_id}} ->
+          {:cont, :ok}
+
+        {:ok, %{trace_id: other}} ->
+          {:halt, {:error, {:event_trace_id_mismatch, trace_id, other}}}
+
+        {:error, reason} ->
+          {:halt, {:error, reason}}
+      end
+    end)
+  end
+
+  defp require_capability_report(%Crucible.ForwardTrace{capability_report: report})
+       when report not in [nil, %{}],
+       do: :ok
+
+  defp require_capability_report(%Crucible.ForwardTrace{}),
+    do: {:error, :missing_capability_report}
+
   defp validate_no_raw_arrays(%{event_type: event_type, signal: signal} = event)
        when event_type in ["signal_record", :signal_record] and is_map(signal) do
     cond do
@@ -163,14 +230,5 @@ defmodule CrucibleSignalTrace.Validate do
 
   defp numeric_nested?(_value), do: false
 
-  defp normalize_keys(event) do
-    Map.new(event, fn
-      {key, value} when is_binary(key) -> {String.to_atom(key), normalize_nested(value)}
-      {key, value} -> {key, normalize_nested(value)}
-    end)
-  end
-
-  defp normalize_nested(value) when is_map(value), do: normalize_keys(value)
-  defp normalize_nested(value) when is_list(value), do: Enum.map(value, &normalize_nested/1)
-  defp normalize_nested(value), do: value
+  defp normalize_keys(event), do: SafeTerms.normalize_keys(event)
 end

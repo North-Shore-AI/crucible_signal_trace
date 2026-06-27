@@ -4,6 +4,7 @@ defmodule CrucibleSignalTrace.JSONL do
   """
 
   @schema_version "crucible.trace.v4"
+  alias CrucibleSignalTrace.SafeTerms
 
   def encode_line!(value), do: Jason.encode!(value) <> "\n"
 
@@ -45,7 +46,7 @@ defmodule CrucibleSignalTrace.JSONL do
   @spec stream!(String.t()) :: Enumerable.t()
   def stream!(path) when is_binary(path) do
     path
-    |> File.stream!([], :line)
+    |> File.stream!(:line, [])
     |> Stream.map(&decode_v4_event!/1)
   end
 
@@ -60,12 +61,12 @@ defmodule CrucibleSignalTrace.JSONL do
 
   def stream_decode(path) when is_binary(path) do
     path
-    |> File.stream!([], :line)
+    |> File.stream!(:line, [])
     |> Stream.map(&decode_line/1)
   end
 
   def trace_start(trace_id),
-    do: %{event_type: :trace_start, trace_id: trace_id, schema_version: 1}
+    do: v4_event(:trace_start, trace_id: trace_id)
 
   def v4_event(event_type, attrs) when is_list(attrs) or is_map(attrs) do
     attrs
@@ -90,13 +91,12 @@ defmodule CrucibleSignalTrace.JSONL do
   end
 
   def token_step(trace_id, token_index, logits_ref, steering_summary \\ %{}) do
-    %{
-      event_type: :token_step,
+    v4_event(:token_step, %{
       trace_id: trace_id,
       token_index: token_index,
       logits_ref: logits_ref,
       steering: steering_summary
-    }
+    })
   end
 
   def matrix_row(trace_id, matrix, row) when matrix in [:model, :backend, :signal, :generation] do
@@ -113,7 +113,7 @@ defmodule CrucibleSignalTrace.JSONL do
   end
 
   def trace_end(trace_id, summary \\ %{}),
-    do: %{event_type: :trace_end, trace_id: trace_id, summary: summary}
+    do: v4_event(:trace_end, trace_id: trace_id, summary: summary)
 
   defp normalize_v4_event(value) when is_struct(value),
     do: Map.from_struct(value) |> normalize_v4_event()
@@ -121,7 +121,7 @@ defmodule CrucibleSignalTrace.JSONL do
   defp normalize_v4_event(value) when is_map(value) do
     value
     |> normalize_map()
-    |> Map.update(:event_type, nil, &string_or_atom/1)
+    |> Map.update(:event_type, nil, &SafeTerms.event_type/1)
     |> Map.put_new(:schema_version, @schema_version)
     |> Map.put_new_lazy(:timestamp, fn ->
       DateTime.utc_now() |> DateTime.truncate(:second) |> DateTime.to_iso8601()
@@ -130,21 +130,5 @@ defmodule CrucibleSignalTrace.JSONL do
 
   defp normalize_map(value) when is_list(value), do: value |> Map.new() |> normalize_map()
 
-  defp normalize_map(value) when is_map(value) do
-    Map.new(value, fn
-      {key, value} when is_binary(key) -> {String.to_atom(key), normalize_nested(value)}
-      {key, value} -> {key, normalize_nested(value)}
-    end)
-  end
-
-  defp normalize_nested(value) when is_struct(value),
-    do: Map.from_struct(value) |> normalize_map()
-
-  defp normalize_nested(value) when is_map(value), do: normalize_map(value)
-  defp normalize_nested(value) when is_list(value), do: Enum.map(value, &normalize_nested/1)
-  defp normalize_nested(value), do: value
-
-  defp string_or_atom(value) when is_binary(value), do: value
-  defp string_or_atom(value) when is_atom(value), do: Atom.to_string(value)
-  defp string_or_atom(value), do: value
+  defp normalize_map(value) when is_map(value), do: SafeTerms.normalize_keys(value)
 end
