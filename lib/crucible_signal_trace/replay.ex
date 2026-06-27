@@ -16,6 +16,8 @@ defmodule CrucibleSignalTrace.Replay do
 
   @type filter :: %{
           optional(:signal_type) => atom() | String.t() | [atom() | String.t()],
+          optional(:activation_name) => String.t() | [String.t()],
+          optional(:component) => atom() | String.t() | [atom() | String.t()],
           optional(:tap_id) => String.t() | [String.t()],
           optional(:token_index) => integer() | [integer()],
           optional(:layer_index) => integer() | [integer()]
@@ -97,7 +99,8 @@ defmodule CrucibleSignalTrace.Replay do
   @doc """
   Filters recorded signals by canonical replay selectors.
 
-  Supported filter keys: `:signal_type`, `:tap_id`, `:token_index`, `:layer_index`.
+  Supported filter keys: `:signal_type`, `:activation_name`, `:component`, `:tap_id`,
+  `:token_index`, `:layer_index`.
   """
   @spec filter_signals(ForwardTrace.t(), filter()) :: [SignalRecord.t()]
   def filter_signals(%ForwardTrace{} = trace, filter) when is_map(filter) do
@@ -129,19 +132,26 @@ defmodule CrucibleSignalTrace.Replay do
   end
 
   defp surface_node(%SignalRecord{} = signal) do
-    SurfaceNode.new!(%{
-      id: signal.tap_id || signal.signal_id || node_id(signal),
-      signal_type: signal.signal_type,
-      layer_name: signal.node_name,
-      layer_index: signal.layer_index,
-      token_index: signal.token_index,
-      operations: [:read],
-      capture_modes: capture_modes(signal),
-      metadata: %{
+    metadata =
+      signal.metadata
+      |> Map.merge(%{
         signal_id: signal.signal_id,
         tap_id: signal.tap_id,
         capture_method: signal.capture_method
-      }
+      })
+
+    SurfaceNode.new!(%{
+      id: signal.tap_id || signal.signal_id || node_id(signal),
+      signal_type: signal.signal_type,
+      activation_name: Map.get(metadata, :activation_name),
+      component: Map.get(metadata, :component),
+      axes: Map.get(metadata, :axes),
+      layer_name: signal.node_name,
+      layer_index: signal.layer_index || Map.get(metadata, :layer_index),
+      token_index: signal.token_index || Map.get(metadata, :token_index),
+      operations: [:read],
+      capture_modes: capture_modes(signal),
+      metadata: metadata
     })
   end
 
@@ -154,10 +164,36 @@ defmodule CrucibleSignalTrace.Replay do
     Enum.join(parts, ":")
   end
 
-  defp capture_modes(%SignalRecord{tensor_summary: summary}) when not is_nil(summary),
-    do: [:summary]
+  defp capture_modes(%SignalRecord{tensor_summary: summary} = signal) when not is_nil(summary),
+    do: Enum.uniq([:summary | raw_capture_modes(signal)])
 
-  defp capture_modes(_signal), do: [:summary]
+  defp capture_modes(signal), do: raw_capture_modes(signal) |> default_capture_modes()
+
+  defp raw_capture_modes(%SignalRecord{} = signal) do
+    modes = []
+    modes = if raw_ref?(signal), do: [:raw | modes], else: modes
+
+    mode = Map.get(signal.metadata, :capture_mode)
+
+    modes =
+      cond do
+        mode == :raw and raw_ref?(signal) -> [:raw | modes]
+        mode in [nil, :raw] -> modes
+        true -> [mode | modes]
+      end
+
+    Enum.uniq(modes)
+  end
+
+  defp default_capture_modes([]), do: [:summary]
+  defp default_capture_modes(modes), do: Enum.uniq(modes)
+
+  defp raw_ref?(%SignalRecord{tensor_ref: %Crucible.TensorRef{}}), do: true
+
+  defp raw_ref?(%SignalRecord{metadata: %{raw_ref: raw_ref}}) when raw_ref not in [nil, ""],
+    do: true
+
+  defp raw_ref?(_signal), do: false
 
   defp matches_filter?(signal, filter) do
     Enum.all?(filter, fn {key, value} -> matches_field?(signal, key, value) end)
@@ -166,6 +202,14 @@ defmodule CrucibleSignalTrace.Replay do
   defp matches_field?(signal, :signal_type, value) do
     allowed = List.wrap(value) |> Enum.map(&atomize/1)
     signal.signal_type in allowed
+  end
+
+  defp matches_field?(signal, :activation_name, value),
+    do: Map.get(signal.metadata, :activation_name) in List.wrap(value)
+
+  defp matches_field?(signal, :component, value) do
+    allowed = List.wrap(value) |> Enum.map(&atomize/1)
+    Map.get(signal.metadata, :component) in allowed
   end
 
   defp matches_field?(signal, :tap_id, value),

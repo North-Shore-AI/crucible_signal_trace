@@ -102,6 +102,27 @@ defmodule CrucibleSignalTraceTest do
              )
   end
 
+  test "validate_forward_trace rejects malformed activation metadata" do
+    trace = %Crucible.ForwardTrace{
+      trace_id: "trace-invalid-activation",
+      provider_kind: :fixture,
+      model_id: "model:fixture",
+      signals: [
+        %Crucible.SignalRecord{
+          signal_id: "bad-q",
+          trace_id: "trace-invalid-activation",
+          signal_type: :attention_q,
+          metadata: %{activation_name: "blocks.0.attn.hook_q"}
+        }
+      ]
+    }
+
+    assert {:error,
+            {:invalid_signal_activation_metadata, "bad-q",
+             {:missing_activation_axes, "blocks.0.attn.hook_q"}}} =
+             CrucibleSignalTrace.Validate.validate_forward_trace(trace, :shape)
+  end
+
   test "serializes traces to JSONL" do
     signal =
       Crucible.SignalRecord.new!(

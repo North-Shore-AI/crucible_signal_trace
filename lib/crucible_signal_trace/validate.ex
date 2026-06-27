@@ -4,6 +4,7 @@ defmodule CrucibleSignalTrace.Validate do
   """
 
   @schema_version "crucible.trace.v4"
+  alias CrucibleSignal.ActivationMetadata
   alias CrucibleSignalTrace.{SafeTerms, TokenStep}
 
   @event_types MapSet.new(~w(
@@ -115,7 +116,10 @@ defmodule CrucibleSignalTrace.Validate do
         {:error, :empty_signals}
 
       Enum.all?(signals, &match?(%Crucible.SignalRecord{}, &1)) ->
-        validate_signal_trace_ids(signals, trace_id)
+        with :ok <- validate_signal_trace_ids(signals, trace_id),
+             :ok <- validate_signal_activation_metadata(signals) do
+          :ok
+        end
 
       true ->
         {:error, :invalid_signal_records}
@@ -129,6 +133,18 @@ defmodule CrucibleSignalTrace.Validate do
       end)
 
     if mismatched == [], do: :ok, else: {:error, {:signal_trace_id_mismatch, trace_id}}
+  end
+
+  defp validate_signal_activation_metadata(signals) do
+    Enum.reduce_while(signals, :ok, fn %Crucible.SignalRecord{} = signal, :ok ->
+      case ActivationMetadata.normalize(signal.metadata) do
+        {:ok, _metadata} ->
+          {:cont, :ok}
+
+        {:error, reason} ->
+          {:halt, {:error, {:invalid_signal_activation_metadata, signal.signal_id, reason}}}
+      end
+    end)
   end
 
   defp require_base(event) do
